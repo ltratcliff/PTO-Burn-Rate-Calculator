@@ -25,7 +25,7 @@ custom_css = """
 
 app_ui = ui.page_fluid(
     ui.tags.style(custom_css),
-    ui.h2("PTO Hours Calculator"),
+    ui.h2("Burn Rate Calculator"),
     ui.page_sidebar(
         ui.sidebar(
             ui.input_numeric("current_hours", "Current Hours", value=580),
@@ -104,7 +104,11 @@ def server(input, output, session):
                 ui.tags.tr([
                     ui.tags.td(
                         f"{row[col]:.2f}" if isinstance(row[col], (int, float)) else str(row[col]),
-                        {"style": "background-color: lightgreen"} if col == 'Remaining Hours' and isinstance(row[col], (int, float)) and row[col] < 0 else {}
+                        {"style": "background-color: " + (
+                            "lightgreen" if row[col] < 0 else
+                            "lightcoral" if row[col] < 40 else
+                            "transparent"
+                        )} if col == 'Remaining Hours' and isinstance(row[col], (int, float)) else {}
                     )
                     for col in df.columns
                 ])
