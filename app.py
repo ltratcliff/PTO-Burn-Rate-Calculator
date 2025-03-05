@@ -1,6 +1,7 @@
 from shiny import App, render, ui, reactive
 import pandas as pd
 import numpy as np
+from io import BytesIO
 
 # Custom CSS for table styling
 custom_css = """
@@ -29,7 +30,8 @@ app_ui = ui.page_fluid(
     ui.page_sidebar(
         ui.sidebar(
             ui.input_numeric("current_hours", "Current Hours", value=580),
-            ui.input_file("file", "Upload Excel File", accept=[".xlsx"])
+            ui.input_file("file", "Upload Excel File", accept=[".xlsx"]),
+            ui.output_ui("download_button")
         ),
         ui.output_table("result_table", style="table-cell { background-color: lightgreen !important; }")
     )
@@ -75,6 +77,30 @@ def server(input, output, session):
 
         except Exception as e:
             return pd.DataFrame({'Message': [f"Error processing file: {str(e)}"]})
+
+    @output
+    @render.ui
+    def download_button():
+        df = process_data()
+        has_data = df is not None and 'Message' not in df.columns
+        return ui.download_button(
+            "download",
+            "Export to Excel",
+            disabled=not has_data
+        )
+
+    @output
+    @render.download(filename="pto_hours.xlsx")
+    def download():
+        df = process_data()
+        if df is None or 'Message' in df.columns:
+            df = pd.DataFrame({'Message': ['No data to export']})
+
+        # Create Excel file in memory
+        output = BytesIO()
+        df.to_excel(output, index=False)
+        output.seek(0)  # Go to beginning of file
+        return output
 
     @output
     @render.ui
