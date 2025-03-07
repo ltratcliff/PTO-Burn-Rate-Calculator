@@ -3,6 +3,24 @@ import pandas as pd
 import numpy as np
 from io import BytesIO
 
+def calculate_weekly_value(input_date):
+    # Define the reset date for each year (May 17)
+    reset_date = pd.Timestamp(input_date.year, 5, 17)
+
+    # If the date is before May 17 of the current year, use previous year's May 17
+    if input_date < reset_date:
+        reset_date = pd.Timestamp(input_date.year - 1, 5, 17)
+
+    # Calculate the number of weeks since the reset date
+    weeks_diff = (input_date - reset_date).days // 7
+
+    # Calculate the value
+    value = 1875 - (weeks_diff * 40)
+
+    return max(value, 0)  # Ensure the value doesn't go negative
+
+
+
 # Custom CSS for table styling
 custom_css = """
 .table {
@@ -22,6 +40,15 @@ custom_css = """
 .negative {
     background-color: lightgreen;
 }
+.shiny-text-output {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin: 10px 0;
+    padding: 8px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
 """
 
 app_ui = ui.page_fluid(
@@ -29,7 +56,9 @@ app_ui = ui.page_fluid(
     ui.h2("Burn Rate Calculator"),
     ui.page_sidebar(
         ui.sidebar(
-            ui.input_numeric("current_hours", "Current Hours", value=580),
+            ui.output_text("current_date_display"),
+            ui.output_text("remaining_hours_display"),
+            ui.hr(),
             ui.input_file("file", "Upload Excel File", accept=[".xlsx"]),
             ui.output_ui("download_button")
         ),
@@ -38,6 +67,19 @@ app_ui = ui.page_fluid(
 )
 
 def server(input, output, session):
+    @output
+    @render.text
+    def current_date_display():
+        current_date = pd.Timestamp.now()
+        return f"Current Date: {current_date.strftime('%B %d, %Y')}"
+
+    @output
+    @render.text
+    def remaining_hours_display():
+        current_date = pd.Timestamp.now()
+        hours = calculate_weekly_value(current_date)
+        return f"Remaining Hours: {hours:.2f}"
+
     @reactive.Calc
     def process_data():
         try:
@@ -45,7 +87,9 @@ def server(input, output, session):
                 return None
 
             file_path = input.file()[0]["datapath"]
-            current_hours_val = input.current_hours()
+            # Calculate current hours based on today's date
+            current_date = pd.Timestamp.now()
+            current_hours_val = calculate_weekly_value(current_date)
 
             # Read the Excel file
             df = pd.read_excel(file_path, usecols=['Employee Name', 'Pay Type', 'Regular Hours'])
